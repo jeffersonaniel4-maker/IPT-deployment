@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Ingredient Inventory | LJ's Bakery{% endblock %}
+{% block content %}
+<div class="page-eyebrow">Ingredient supplies</div>
+<h1 class="page-title">Ingredient inventory</h1>
+<p class="page-subtitle">Monitor ingredient counts and suggest what to buy. Completing a production batch automatically deducts the ingredients used. Update counts after a physical count when needed. Receiving a suggestion adds its quantity automatically.</p>
+<div class="row g-3 mb-4">
+{% for key, label, color in [('all','Ingredients',''), ('low','Low stock','text-warning'), ('out','Out of stock','text-danger'), ('unrecorded','Needs first count','text-secondary')] %}
+<div class="col-6 col-lg-3"><a class="card metric text-decoration-none {{ color }}" href="{{ url_for('ingredient_inventory', status=key if key != 'all' else 'all') }}"><span class="metric-label">{{ label }}</span><strong class="metric-value">{{ counts[key] }}</strong></a></div>
+{% endfor %}
+</div>
+<details class="card p-3 mb-4"><summary class="fw-bold">Add ingredient</summary>
+<form method="post" action="{{ url_for('ingredient_inventory') }}" class="row g-3 mt-1">
+{% for field,label,type,value in [('name','Ingredient name','text',''),('unit','Unit (kg, L, pcs, pack)','text',''),('unit_cost','Cost per unit','number','0'),('quantity','Current stock','number','0'),('low_stock_level','Low-stock threshold','number','5')] %}
+<div class="col-sm-6 col-lg-2"><label class="form-label" for="add-{{ field }}">{{ label }}</label><input id="add-{{ field }}" class="form-control" name="{{ field }}" type="{{ type }}" value="{{ value }}" {% if type == 'number' %}min="0" max="1000000000" step="any"{% else %}maxlength="{{ 100 if field == 'name' else 20 }}"{% endif %} required></div>
+{% endfor %}<div class="col-lg-2 align-self-end"><button class="btn btn-primary">Add ingredient</button></div></form></details>
+<form method="get" class="row g-2 mb-3">
+<div class="col-md-6"><input aria-label="Search ingredients" class="form-control" name="search" value="{{ search }}" placeholder="Search ingredients..."></div>
+<div class="col-md-4"><select aria-label="Stock status" class="form-select" name="status">{% for key,label in [('all','All ingredients'),('low','Low stock'),('out','Out of stock'),('in','In stock'),('unrecorded','Needs first count')] %}<option value="{{ key }}" {{ 'selected' if status == key }}>{{ label }}</option>{% endfor %}</select></div>
+<div class="col-md-2"><button class="btn btn-primary w-100">Filter</button></div></form>
+<p class="text-muted small">Low stock means the quantity is above zero and at or below its threshold. Ingredients without an initial count are shown as “Needs first count”.</p>
+<div class="card table-responsive mb-4"><table class="table align-middle mb-0"><thead><tr><th>Ingredient</th><th>Available</th><th>Status</th><th>Update count</th>{% if current_user.role == 'Baker' %}<th>Purchase suggestion</th>{% endif %}</tr></thead><tbody>
+{% for row in rows %}{% set ing = row.ingredient %}{% set stock = row.stock %}
+<tr><td><strong>{{ ing.name }}</strong><br><small class="text-muted">{{ ing.unit }}</small></td><td>{{ '%g'|format(stock.quantity) if stock else 'Not recorded' }} {{ ing.unit if stock else '' }}<br><small class="text-muted">Low at: {{ '%g'|format(stock.low_stock_level) if stock else '5' }} {{ ing.unit }}</small></td>
+<td>{% set colors = {'out':'danger','low':'warning text-dark','in':'success','unrecorded':'secondary'} %}{% set labels = {'out':'Out of stock','low':'Low stock','in':'In stock','unrecorded':'Needs first count'} %}<span class="badge bg-{{ colors[row.state] }}">{{ labels[row.state] }}</span></td>
+<td><details><summary>Record count</summary><form method="post" action="{{ url_for('ingredient_stock', id=ing.id) }}" class="mt-2" style="min-width:180px"><label class="form-label" for="stock-{{ ing.id }}">Current stock ({{ ing.unit }})</label><input id="stock-{{ ing.id }}" class="form-control mb-2" type="number" name="quantity" min="0" max="1000000000" step="any" value="{{ '%g'|format(stock.quantity) if stock else '' }}" required><label class="form-label" for="threshold-{{ ing.id }}">Low-stock threshold ({{ ing.unit }})</label><input id="threshold-{{ ing.id }}" class="form-control mb-2" type="number" name="low_stock_level" min="0" max="1000000000" step="any" value="{{ '%g'|format(stock.low_stock_level) if stock else '5' }}" required><button class="btn btn-sm btn-primary">Save count</button></form></details></td>
+{% if current_user.role == 'Baker' %}<td>{% if ing.id in pending_ids %}<span class="text-muted">Purchase pending</span>{% else %}<details><summary>Suggest to buy</summary><form method="post" action="{{ url_for('suggest_ingredient_purchase', id=ing.id) }}" class="mt-2" style="min-width:180px"><label class="form-label" for="buy-{{ ing.id }}">Quantity to buy ({{ ing.unit }})</label><input id="buy-{{ ing.id }}" class="form-control mb-2" type="number" name="quantity" min="0.001" max="1000000000" step="any" required><label class="form-label" for="note-{{ ing.id }}">Note (optional)</label><input id="note-{{ ing.id }}" class="form-control mb-2" name="note" maxlength="500" placeholder="Needed for tomorrow's baking"><button class="btn btn-sm btn-primary">Save suggestion</button></form></details>{% endif %}</td>{% endif %}</tr>
+{% else %}<tr><td colspan="5" class="text-center text-muted py-4">No ingredients found. Add an ingredient or change the filters.</td></tr>{% endfor %}
+</tbody></table></div>
+<h2 class="h4">Purchase suggestions</h2><p class="text-muted">Shared with the cashier. Mark received only when the full suggested quantity has arrived.</p>
+<div class="card table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Ingredient</th><th>Quantity to buy</th><th>Suggested by</th><th>Note</th><th>Status</th></tr></thead><tbody>
+{% for suggestion in suggestions %}<tr><td>{{ suggestion.ingredient.name }}</td><td>{{ '%g'|format(suggestion.quantity) }} {{ suggestion.ingredient.unit }}</td><td>{{ suggestion.user.username }}<br><small class="text-muted">{{ suggestion.created_at.strftime('%b %d, %Y') }}</small></td><td>{{ suggestion.note or '—' }}</td><td><span class="badge {{ 'bg-success' if suggestion.status == 'Received' else 'bg-warning text-dark' }}">{{ suggestion.status }}</span>{% if current_user.role in ['Cashier', 'Admin'] and suggestion.status == 'Pending' %}<form class="mt-2" method="post" action="{{ url_for('receive_ingredient_purchase', id=suggestion.id) }}"><button class="btn btn-sm btn-outline-success">Receive {{ '%g'|format(suggestion.quantity) }} {{ suggestion.ingredient.unit }}</button></form>{% endif %}</td></tr>
+{% else %}<tr><td colspan="5" class="text-center text-muted py-4">No purchase suggestions yet.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}
+

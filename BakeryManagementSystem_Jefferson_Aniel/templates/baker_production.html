@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baker Production Calculator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #fffaf0, #f5f5f4);
+            color: #1c1917;
+        }
+
+        .navbar-baker {
+            background: linear-gradient(90deg, #1f2937, #111827);
+            box-shadow: 0 8px 25px rgba(15, 23, 42, 0.2);
+        }
+
+        .navbar-baker .navbar-brand {
+            font-weight: 800;
+            font-size: 1.4rem;
+            color: #fff !important;
+        }
+
+        .nav-link {
+            color: #d1d5db !important;
+            font-weight: 600;
+        }
+
+        .card {
+            border: 1px solid #e7e5e4;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+            background: #fff;
+        }
+
+        .section-title {
+            font-weight: 800;
+            font-size: 1.3rem;
+            margin-top: 2rem;
+        }
+
+        .ingredient-item {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 1.2rem;
+            margin-bottom: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .ingredient-item:hover {
+            border-color: #d97706;
+            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.1);
+        }
+
+        .ingredient-item.selected {
+            background: #fef3c7;
+            border-color: #d97706;
+        }
+
+        .qty-input, .unit-input {
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            padding: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #1c1917, #292524);
+            color: #fff;
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .stat-box .label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .stat-box .value {
+            font-size: 2rem;
+            font-weight: 800;
+        }
+
+        .btn-primary-baker {
+            background: linear-gradient(135deg, #d97706, #f59e0b);
+            border: none;
+            color: #fff;
+            font-weight: 700;
+            border-radius: 12px;
+            padding: 0.9rem 1.8rem;
+        }
+
+        .btn-primary-baker:hover {
+            background: linear-gradient(135deg, #b45309, #d97706);
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(217, 119, 6, 0.2);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #1c1917, #292524);
+            color: #fff;
+        }
+
+        .modal-header .btn-close {
+            filter: brightness(0) invert(1);
+        }
+
+        .breadcrumb-item.active {
+            color: #d97706;
+            font-weight: 700;
+        }
+
+        .add-ingredient-form {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-baker sticky-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand" href="{{ url_for('baker_home') }}">
+                <i class="fa-solid fa-user-chef"></i> Baker Production
+            </a>
+            <div class="d-flex align-items-center gap-3">
+                <a href="{{ url_for('baker_home') }}" class="btn btn-outline-light btn-sm">
+                    <i class="fa-solid fa-arrow-left me-1"></i> Back to Dashboard
+                </a>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">
+                    <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb bg-transparent">
+                <li class="breadcrumb-item"><a href="{{ url_for('baker_home') }}">Dashboard</a></li>
+                <li class="breadcrumb-item active">Production Calculator</li>
+            </ol>
+        </nav>
+
+        <!-- Header Card -->
+        <div class="card p-4 mb-4 border-info border-2">
+            <h2 class="fw-bold mb-2">
+                <i class="fa-solid fa-chart-bar me-2 text-info"></i>Production Costing Calculator
+            </h2>
+            <p class="text-muted mb-0">Select a pastry, add only the ingredients you will use, and calculate production costs for your batch.</p>
+        </div>
+
+        <form id="productionForm">
+            <!-- Step 1: Select Pastry (or add custom) -->
+            <div class="card p-4 mb-4">
+                <h4 class="section-title">
+                    <span class="badge bg-warning text-dark me-2">1</span>Select Pastry or Add Custom
+                </h4>
+                <div class="row mt-3">
+                    {% for product in product_data %}
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="product" value="{{ product.id }}" 
+                                   id="product_{{ product.id }}" data-price="{{ product.price }}" data-name="{{ product.name }}" onchange="clearCustomPastry()">
+                            <label class="form-check-label w-100" for="product_{{ product.id }}">
+                                <strong>{{ product.name }}</strong> - ₱{{ "%.2f"|format(product.price) }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="row mt-4 pt-3 border-top">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Or add a custom pastry name:</label>
+                        <input type="text" id="customPastry" class="form-control" placeholder="e.g., Croissant, Donut, etc." onchange="updateCustomPastry()">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Sale price (₱):</label>
+                        <input type="number" id="customPastryPrice" class="form-control" placeholder="0.00" step="0.01" min="0" onchange="updateCustomPastry()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Batch Quantity -->
+            <div class="card p-4 mb-4">
+                <h4 class="section-title">
+                    <span class="badge bg-warning text-dark me-2">2</span>Batch Quantity
+                </h4>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">How many pieces do you want to bake?</label>
+                        <input type="number" class="form-control form-control-lg" id="batchQuantity" 
+                               name="batch_quantity" value="200" min="1" step="10" required>
+                        <small class="text-muted">Default is 200 pieces. Adjust as needed.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-4 mb-4">
+                <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+                    <h4 class="section-title mb-0">Ingredient stock levels</h4>
+                    <a href="{{ url_for('ingredient_inventory') }}" target="_blank" rel="noopener" class="btn btn-outline-secondary">Manage stock / suggest purchases (new tab)</a>
+                </div>
+                <p class="text-muted">All ingredients are shown below. Stock is checked again when you complete the batch. Reload this page after changing stock in another tab.</p>
+                <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Ingredient</th><th>Available</th><th>Low at</th><th>Status</th><th>This batch uses</th><th>After batch</th></tr></thead><tbody>
+                {% for ing in ingredients %}
+                <tr><td>{{ ing.name }}</td><td>{{ '%g'|format(ing.stock) if ing.stock is not none else 'Not recorded' }} {{ ing.unit if ing.stock is not none else '' }}</td><td>{{ '%g'|format(ing.low_stock_level) }} {{ ing.unit }}</td><td>
+                {% if ing.stock is none %}<span class="badge bg-secondary">Needs first count</span>{% elif ing.stock <= 0 %}<span class="badge bg-danger">Out of stock</span>{% elif ing.stock <= ing.low_stock_level %}<span class="badge bg-warning text-dark">Low stock</span>{% else %}<span class="badge bg-success">In stock</span>{% endif %}
+                </td><td id="usage-{{ ing.id }}">0 {{ ing.unit }}</td><td id="remaining-{{ ing.id }}">{{ '%g'|format(ing.stock) if ing.stock is not none else 'Not recorded' }} {{ ing.unit if ing.stock is not none else '' }}</td></tr>
+                {% else %}<tr><td colspan="6">No ingredients yet. Add ingredients and their stock counts using Manage stock.</td></tr>{% endfor %}
+                </tbody></table></div>
+                <p id="stockWarning" class="text-danger mb-0" role="status"></p>
+            </div>
+            <!-- Step 3: Add Ingredients (fully custom) -->
+            <div class="card p-4 mb-4">
+                <h4 class="section-title">
+                    <span class="badge bg-warning text-dark me-2">3</span>Add Ingredients for this Batch
+                </h4>
+                <small class="text-muted d-block mb-3">
+                    Add only the ingredients you will actually use for this pastry. 
+                    Choose stocked ingredients. Enter quantities for 200 pieces; quantities scale to your batch size and are deducted automatically on completion.
+                </small>
+                
+                <!-- Empty list – ingredients appear here as the baker adds them -->
+                <div id="ingredientsList" class="mt-3">
+                    <p class="text-muted" id="noIngredientsMsg">No ingredients added yet. Use the form below to add ingredients.</p>
+                </div>
+
+                <!-- Add Known Ingredient or New Ingredient -->
+                <div class="add-ingredient-form">
+                    <h5 class="fw-bold mb-3">
+                        <i class="fa-solid fa-plus me-2 text-warning"></i>Add Ingredient
+                    </h5>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <select id="knownIngSelect" class="form-select">
+                                <option value="">-- Select from known ingredients --</option>
+                                
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" class="form-control" id="knownIngQty" placeholder="Quantity" step="0.01" min="0">
+                        </div>
+                        <div class="col-md-2">
+                            <div id="knownIngUnit" class="form-control-plaintext text-muted">unit</div>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="button" class="btn btn-primary-baker w-100" onclick="handleIngredientAdd()">
+                                <i class="fa-solid fa-plus"></i> Add
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Cost Breakdown -->
+            <div class="card p-4 mb-4">
+                <h4 class="section-title">
+                    <span class="badge bg-success text-white me-2">4</span>Cost & Profit Breakdown
+                </h4>
+
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <div class="stat-box">
+                            <div class="label">Total Ingredient Cost</div>
+                            <div class="value" id="totalCost">₱ 0.00</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-box">
+                            <div class="label">Sales Value (200 pcs)</div>
+                            <div class="value" id="salesValue">₱ 0.00</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-box" style="background: linear-gradient(135deg, #047857, #10b981);">
+                            <div class="label">Total Profit</div>
+                            <div class="value" id="totalProfit">₱ 0.00</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stat-box" style="background: linear-gradient(135deg, #1d4ed8, #60a5fa);">
+                            <div class="label">Profit Margin</div>
+                            <div class="value" id="profitMargin">0%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed Breakdown Table -->
+                <div class="mt-4">
+                    <h5 class="fw-bold">Ingredient Details</h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover" id="breakdownTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Ingredient</th>
+                                    <th>Qty per Batch</th>
+                                    <th>Unit Cost</th>
+                                    <th>Total Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody id="breakdownBody">
+                                <tr>
+                                    <td colspan="4" class="text-muted text-center">No ingredients added</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="d-grid gap-2 mb-5">
+                <button id="completeBatchBtn" type="button" class="btn btn-primary-baker btn-lg" onclick="completeBatch()">
+                    <i class="fa-solid fa-check-circle me-2"></i>Complete Batch & Add to Inventory
+                </button>
+                <a href="{{ url_for('baker_home') }}" class="btn btn-outline-secondary btn-lg">
+                    <i class="fa-solid fa-times me-1"></i>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Data from server
+        const recipeLibrary = {{ recipe_library|tojson|safe }};
+        const productData = {{ product_data|tojson|safe }};
+        const knownIngredients = {{ ingredients|tojson|safe }};
+
+        // Only custom ingredients the baker adds
+        let customIngredients = [];
+
+        // Populate known-ingredient dropdown on load
+        function populateKnownIngredients() {
+            const knownSel = document.getElementById('knownIngSelect');
+            if (!knownSel) return;
+
+            knownSel.replaceChildren(new Option('-- Select a stocked ingredient --', ''));
+            knownIngredients.forEach(ing => {
+                const option = new Option(`${ing.name} (${ing.unit}) — ${ing.stock === null ? 'Needs first count' : ing.stock + ' available'}`, ing.id);
+                option.disabled = ing.stock === null || ing.stock <= 0;
+                knownSel.add(option);
+            });
+        }
+        document.getElementById('knownIngSelect').addEventListener('change', function () {
+            const ing = knownIngredients.find(i => String(i.id) === this.value);
+            document.getElementById('knownIngUnit').textContent = ing ? ing.unit : 'unit';
+        });
+        // Handle Add button
+        function handleIngredientAdd() {
+            const sel = document.getElementById('knownIngSelect');
+            const value = sel.value;
+
+            if (!value) {
+                alert('Please select a stocked ingredient. Use Manage stock to add ingredients or record counts.');
+                return;
+            }
+
+            const qty = parseFloat(document.getElementById('knownIngQty').value);
+            if (!qty || qty <= 0) {
+                alert('Please enter a valid quantity');
+                return;
+            }
+
+            const ing = knownIngredients.find(i => String(i.id) === String(value));
+            if (!ing) {
+                alert('Selected ingredient not found');
+                return;
+            }
+
+            addCustomIngredient({
+                ingredient_id: ing.id,
+                name: ing.name,
+                quantity: qty,               // quantity for the batch of 200 (will be scaled)
+                unit: ing.unit,
+                unit_cost: parseFloat(ing.unit_cost)
+            });
+
+            // Reset form
+            sel.value = '';
+            document.getElementById('knownIngQty').value = '';
+            document.getElementById('knownIngUnit').textContent = 'unit';
+
+        }
+
+        // Core: add ingredient to the list
+        function addCustomIngredient(ing) {
+            const customId = `custom_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+
+            customIngredients.push({
+                id: customId,
+                ingredient_id: ing.ingredient_id,
+                name: ing.name,
+                quantity: ing.quantity,       // qty for base of 200 pcs
+                unit: ing.unit,
+                unit_cost: ing.unit_cost
+            });
+
+            // Hide “no ingredients” message
+            const msg = document.getElementById('noIngredientsMsg');
+            if (msg) msg.style.display = 'none';
+
+            const div = document.createElement('div');
+            div.id = customId;
+            div.className = 'ingredient-item selected';
+            div.innerHTML = `
+                <div class="row align-items-center">
+                    <div class="col-md-1">
+                        <i class="fa-solid fa-check text-success"></i>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>${ing.name}</strong>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" class="qty-input form-control" 
+                               value="${ing.quantity}" step="0.01" min="0"
+                               data-ing-id="${customId}" 
+                               onchange="updateIngredientQty('${customId}', this.value)">
+                    </div>
+                    <div class="col-md-2">
+                        <span>${ing.unit}</span>
+                    </div>
+                    <div class="col-md-2 text-muted">
+                        ₱${Number(ing.unit_cost).toFixed(2)} / ${ing.unit}
+                    </div>
+                    <div class="col-md-1 text-end">
+                        <button type="button" class="btn btn-sm btn-danger" 
+                                onclick="removeCustomIngredient('${customId}')">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('ingredientsList').appendChild(div);
+            calculateCosts();
+        }
+
+        function updateIngredientQty(id, newQty) {
+            const item = customIngredients.find(i => i.id === id);
+            if (item) {
+                item.quantity = parseFloat(newQty) || 0;
+                calculateCosts();
+            }
+        }
+
+        function removeCustomIngredient(id) {
+            customIngredients = customIngredients.filter(ing => ing.id !== id);
+            const el = document.getElementById(id);
+            if (el) el.remove();
+
+            if (customIngredients.length === 0) {
+                const msg = document.getElementById('noIngredientsMsg');
+                if (msg) msg.style.display = 'block';
+            }
+            calculateCosts();
+        }
+
+        // ===== Cost calculation =====
+        function updateStockPreview() {
+            const batchQty = Number(document.getElementById('batchQuantity').value) || 0;
+            const warnings = [];
+            knownIngredients.forEach(ing => {
+                const used = customIngredients.filter(item => item.ingredient_id === ing.id)
+                    .reduce((sum, item) => sum + item.quantity * batchQty / 200, 0);
+                document.getElementById(`usage-${ing.id}`).textContent = `${Number(used.toFixed(4))} ${ing.unit}`;
+                const remaining = ing.stock === null ? null : ing.stock - used;
+                const cell = document.getElementById(`remaining-${ing.id}`);
+                cell.textContent = remaining === null ? 'Not recorded' : `${Number(remaining.toFixed(4))} ${ing.unit}`;
+                cell.classList.toggle('text-danger', remaining !== null && remaining < 0);
+                if (used > 0 && (remaining === null || remaining < 0)) warnings.push(`Insufficient ${ing.name}`);
+            });
+            document.getElementById('stockWarning').textContent = warnings.join('. ');
+            return warnings.length === 0;
+        }
+        function calculateCosts() {
+            updateStockPreview();
+            const batchQty = parseFloat(document.getElementById('batchQuantity').value) || 200;
+            const selectedProduct = document.querySelector('input[name="product"]:checked');
+            const customPriceInput = document.getElementById('customPastryPrice');
+            const customNameInput = document.getElementById('customPastry');
+
+            let salePrice = 0;
+
+            if (selectedProduct) {
+                salePrice = parseFloat(selectedProduct.dataset.price) || 0;
+            } else if (customNameInput && customNameInput.value.trim() && customPriceInput) {
+                salePrice = parseFloat(customPriceInput.value) || 0;
+            }
+
+            let totalCost = 0;
+            const breakdownRows = [];
+
+            customIngredients.forEach(ing => {
+                // Quantity is entered for a base of 200 pcs → scale to actual batch
+                const scaledQty = (ing.quantity / 200) * batchQty;
+                const scaledCost = scaledQty * ing.unit_cost;
+                totalCost += scaledCost;
+
+                breakdownRows.push({
+                    name: ing.name,
+                    qty: scaledQty.toFixed(2),
+                    unit: ing.unit,
+                    unitCost: Number(ing.unit_cost).toFixed(2),
+                    totalCost: scaledCost.toFixed(2)
+                });
+            });
+
+            const salesValue = salePrice * batchQty;
+            const profit = salesValue - totalCost;
+            const margin = salesValue > 0 ? ((profit / salesValue) * 100).toFixed(2) : 0;
+
+            document.getElementById('totalCost').textContent = '₱ ' + totalCost.toFixed(2);
+            document.getElementById('salesValue').textContent = '₱ ' + salesValue.toFixed(2);
+            document.getElementById('totalProfit').textContent = '₱ ' + profit.toFixed(2);
+            document.getElementById('profitMargin').textContent = margin + '%';
+
+            // Update sales label to show actual quantity
+            const salesLabel = document.querySelector('#salesValue')?.closest('.stat-box')?.querySelector('.label');
+            if (salesLabel) {
+                salesLabel.textContent = `Sales Value (${batchQty} pcs)`;
+            }
+
+            const tbody = document.getElementById('breakdownBody');
+            if (breakdownRows.length > 0) {
+                tbody.innerHTML = breakdownRows.map(row => `
+                    <tr>
+                        <td>${row.name}</td>
+                        <td>${row.qty} ${row.unit}</td>
+                        <td>₱${row.unitCost}</td>
+                        <td class="fw-bold">₱${row.totalCost}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center">No ingredients added</td></tr>';
+            }
+        }
+
+        function resetCosts() {
+            document.getElementById('totalCost').textContent = '₱ 0.00';
+            document.getElementById('salesValue').textContent = '₱ 0.00';
+            document.getElementById('totalProfit').textContent = '₱ 0.00';
+            document.getElementById('profitMargin').textContent = '0%';
+            document.getElementById('breakdownBody').innerHTML = 
+                '<tr><td colspan="4" class="text-muted text-center">No ingredients added</td></tr>';
+        }
+
+        // ===== Complete Batch =====
+        function completeBatch() {
+            const productRadio = document.querySelector('input[name="product"]:checked');
+            const customName = document.getElementById('customPastry')?.value.trim();
+            const customPrice = parseFloat(document.getElementById('customPastryPrice')?.value) || 0;
+            const batchQty = parseInt(document.getElementById('batchQuantity').value);
+
+            if (!productRadio && !customName) {
+                alert('Please select a pastry or enter a custom pastry name');
+                return;
+            }
+            if (!batchQty || batchQty <= 0) {
+                alert('Please enter a valid batch quantity');
+                return;
+            }
+            if (customIngredients.length === 0) {
+                alert('Please add at least one ingredient');
+                return;
+            }
+
+            const ingredients = customIngredients.map(ing => ({
+                name: ing.name,
+                quantity: ing.quantity,          // base qty for 200
+                unit: ing.unit,
+                unit_cost: ing.unit_cost,
+                ingredient_id: ing.ingredient_id
+            }));
+
+            const payload = {
+                quantity: batchQty,
+                ingredients: ingredients
+            };
+
+            if (productRadio) {
+                payload.product_id = parseInt(productRadio.value);
+            } else {
+                payload.custom_name = customName;
+                payload.custom_price = customPrice;
+            }
+
+            if (!updateStockPreview()) {
+                alert('Not enough ingredient stock for this batch. Reduce the quantities or update inventory.');
+                return;
+            }
+            const completeButton = document.getElementById('completeBatchBtn');
+            completeButton.disabled = true;
+            fetch('{{ url_for("complete_baker_batch") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    window.location.href = '{{ url_for("baker_home") }}';
+                } else {
+                    alert('Error: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Error completing batch');
+            }).finally(() => { completeButton.disabled = false; });
+        }
+
+        // Helpers for custom pastry
+        function clearCustomPastry() {
+            document.getElementById('customPastry').value = '';
+            document.getElementById('customPastryPrice').value = '';
+            calculateCosts();
+        }
+
+        function updateCustomPastry() {
+            // Uncheck any selected radio when typing a custom pastry
+            document.querySelectorAll('input[name="product"]').forEach(r => r.checked = false);
+            calculateCosts();
+        }
+
+        // Event listeners
+        document.getElementById('batchQuantity').addEventListener('input', calculateCosts);
+        document.getElementById('batchQuantity').addEventListener('change', calculateCosts);
+
+        document.querySelectorAll('input[name="product"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                clearCustomPastry();
+                calculateCosts();
+            });
+        });
+
+        // Initialize
+        populateKnownIngredients();
+        calculateCosts();
+    </script>
+</body>
+</html>
+
+
+

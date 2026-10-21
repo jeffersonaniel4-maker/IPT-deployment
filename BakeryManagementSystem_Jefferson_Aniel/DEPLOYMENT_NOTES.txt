@@ -1,0 +1,27 @@
+LJ's Bakery - Aiven / Vercel deployment notes
+
+1. Replace your current app.py with the supplied app.py.
+2. Copy the real Aiven CA certificate (ca.pem, PEM file) into the same folder as app.py.
+3. Ensure requirements.txt contains Flask, Flask-SQLAlchemy, Flask-Login,
+   PyMySQL, cryptography, and python-dotenv, plus your other dependencies.
+4. In Vercel > ipt-project > Settings > Environment Variables, configure:
+   DB_HOST: mysql-27534755-jeffersonaniel4-f4dd.g.aivencloud.com
+   DB_PORT: 15969
+   DB_USER: avnadmin
+   DB_PASSWORD: your ROTATED Aiven password
+   DB_NAME: bakerymanagementsystem
+   SECRET_KEY: generate with: python -c "import secrets; print(secrets.token_hex(32))"
+   Set variables for Production and create a new deployment.
+5. For local runs, copy .env.example to .env and fill real secrets.
+   Do not commit .env. Add .env and *.sql to your project's .gitignore.
+6. If deployed through uploaded files, use the same upload method or Vercel CLI
+   to redeploy the changed project. Source file changes alone will not deploy.
+7. Test /register, /login, Admin/Cashier/Baker screens and database writes.
+8. Vercel's filesystem does NOT permanently store user-uploaded product images.
+   This version rejects online image uploads with a friendly message instead
+   of failing with HTTP 500. Use cloud object storage when image uploads are needed.
+9. IMPORTANT SECURITY: Old credentials were exposed in code. Rotate your Aiven
+   MySQL password and local MySQL root password, and update all systems using them.
+   An older build may also have seeded an Admin account with a weak default
+   password and a predictable invite token; change/revoke these in the database.
+   This version no longer creates those weak bootstrap credentials.

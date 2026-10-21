@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baker Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #fffaf0, #f5f5f4);
+            color: #1c1917;
+        }
+
+        .navbar-baker {
+            background: #1f2937;
+            box-shadow: 0 8px 25px rgba(15, 23, 42, 0.2);
+        }
+
+        .hero-banner {
+            background: linear-gradient(135deg, #1c1917 0%, #292524 100%);
+            color: #fff;
+            border-radius: 24px;
+            padding: 2rem 2.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-banner::after {
+            content: '🥐';
+            position: absolute;
+            right: 25px;
+            bottom: -12px;
+            font-size: 7rem;
+            opacity: 0.1;
+        }
+
+        .card {
+            border: 1px solid #e7e5e4;
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            background: #fff;
+        }
+
+        .stat-card {
+            padding: 1.2rem;
+            border-radius: 18px;
+            color: #fff;
+        }
+
+        .bg-gold { background: linear-gradient(135deg, #d97706, #f59e0b); }
+        .bg-green { background: linear-gradient(135deg, #047857, #10b981); }
+        .bg-blue { background: linear-gradient(135deg, #1d4ed8, #60a5fa); }
+        .bg-red { background: linear-gradient(135deg, #b91c1c, #f87171); }
+
+        .ingredient-box {
+            border: 1px solid #f2e8cf;
+            background: #fffaf3;
+            border-radius: 14px;
+            padding: 0.9rem 1rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .ingredient-box .form-check-input:checked {
+            background-color: #d97706;
+            border-color: #d97706;
+        }
+
+        .table thead th {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #78716c;
+        }
+
+        .value-amount {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-baker sticky-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand text-white fw-bold" href="{{ url_for('pos') }}">
+                <i class="fa-solid fa-bread-slice me-2 text-warning"></i>Bakery Management
+            </a>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <a href="{{ url_for('pos') }}" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-cash-register me-1"></i> POS</a>
+                <a href="{{ url_for('inventory') }}" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-boxes-stacked me-1"></i> Inventory</a>
+                <a href="{{ url_for('products') }}" class="btn btn-outline-light btn-sm"><i class="fa-solid fa-bag-shopping me-1"></i> Products</a>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm"><i class="fa-solid fa-right-from-bracket me-1"></i> Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="hero-banner mb-4">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <span class="badge bg-warning text-dark mb-2 px-3 py-2 rounded-pill fw-bold">
+                        <i class="fa-solid fa-user-chef me-1"></i> Baker Dashboard
+                    </span>
+                    <h1 class="fw-bold mb-2">Production Costing & Profit Estimator</h1>
+                    <p class="mb-0 text-light-emphasis text-white-50">
+                        Select a pastry, choose the ingredients, and calculate the cost, sales value, and profit for each bakery batch.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-5">
+                <div class="card p-4">
+                    <h4 class="fw-bold mb-3"><i class="fa-solid fa-clipboard-list me-2 text-warning"></i>Production Setup</h4>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Choose Pastry</label>
+                        <select id="pastrySelect" class="form-select form-select-lg">
+                            {% for product in products %}
+                                <option value="{{ product.name }}" data-price="{{ product.price }}">{{ product.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Batch Quantity</label>
+                        <div class="input-group input-group-lg">
+                            <input id="batchSize" type="number" class="form-control" min="1" step="1" value="200">
+                            <span class="input-group-text">pieces</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="fw-bold mb-0"><i class="fa-solid fa-wheat-awn me-2 text-success"></i>Ingredient Selection</h5>
+                            <button type="button" class="btn btn-sm btn-outline-warning" id="addCustomIngredientBtn">
+                                <i class="fa-solid fa-plus me-1"></i> Add custom ingredient
+                            </button>
+                        </div>
+                        <div id="ingredientList"></div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button class="btn btn-success btn-lg w-100" id="completeBatchBtn">
+                            <i class="fa-solid fa-check me-2"></i> Complete Batch
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <div class="stat-card bg-gold h-100">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold"><i class="fa-solid fa-dollar-sign me-1"></i> Ingredient Cost</span>
+                            </div>
+                            <div id="ingredientCost" class="value-amount">₱0.00</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="stat-card bg-green h-100">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold"><i class="fa-solid fa-chart-line me-1"></i> Sales Value</span>
+                            </div>
+                            <div id="salesValue" class="value-amount">₱0.00</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="stat-card bg-blue h-100">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold"><i class="fa-solid fa-wallet me-1"></i> Estimated Profit</span>
+                            </div>
+                            <div id="profitValue" class="value-amount">₱0.00</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="stat-card bg-red h-100">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-semibold"><i class="fa-solid fa-percent me-1"></i> Profit Margin</span>
+                            </div>
+                            <div id="profitMargin" class="value-amount">0.00%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-4">
+                    <h4 class="fw-bold mb-3"><i class="fa-solid fa-calculator me-2 text-primary"></i>Cost Breakdown</h4>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Ingredient</th>
+                                    <th class="text-end">Qty</th>
+                                    <th class="text-end">Unit Cost</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="costTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const productData = JSON.parse('{{ product_data|tojson|safe }}');
+        const recipeLibrary = JSON.parse('{{ recipe_library|tojson|safe }}');
+
+        const pastrySelect = document.getElementById('pastrySelect');
+        const batchSizeInput = document.getElementById('batchSize');
+        const ingredientList = document.getElementById('ingredientList');
+        const costTableBody = document.getElementById('costTableBody');
+        const addCustomIngredientBtn = document.getElementById('addCustomIngredientBtn');
+        const completeBatchBtn = document.getElementById('completeBatchBtn');
+
+        const currency = (value) => '₱' + Number(value || 0).toFixed(2);
+
+        function normalizeText(value) {
+            return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+
+        function getRecipe(productName) {
+            const key = normalizeText(productName);
+            const directRecipe = Object.entries(recipeLibrary).find(([recipeKey]) => normalizeText(recipeKey) === key);
+
+            if (directRecipe) {
+                return directRecipe[1];
+            }
+
+            for (const [recipeKey, recipe] of Object.entries(recipeLibrary)) {
+                if (recipeKey === 'default') continue;
+                if (normalizeText(recipeKey).includes(key) || key.includes(normalizeText(recipeKey))) {
+                    return recipe;
+                }
+            }
+
+            return recipeLibrary.default || [];
+        }
+
+        function createIngredientRow(item = {}, isCustom = false) {
+            const box = document.createElement('div');
+            box.className = 'ingredient-box';
+            if (isCustom) {
+                box.dataset.custom = 'true';
+            }
+
+            const ingredientName = item.ingredient || 'Custom Ingredient';
+            const unitValue = item.unit || 'kg';
+            const quantityValue = item.qty || 1;
+            const unitCostValue = item.unit_cost || 0;
+
+            box.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="form-check">
+                        <input class="form-check-input ingredient-check" type="checkbox" checked>
+                        <label class="form-check-label fw-bold">${isCustom ? '<input type="text" class="ingredient-name form-control form-control-sm d-inline-block" value="' + ingredientName + '" style="width: 150px;">' : ingredientName}</label>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-ingredient-btn" aria-label="Remove ingredient">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+                <div class="row g-2 mt-2">
+                    <div class="col-5">
+                        <input type="number" class="form-control ingredient-qty" step="0.01" min="0" value="${quantityValue}">
+                    </div>
+                    <div class="col-3">
+                        <input type="text" class="form-control ingredient-unit" value="${unitValue}">
+                    </div>
+                    <div class="col-4">
+                        <input type="number" class="form-control ingredient-cost" step="0.01" min="0" value="${unitCostValue}">
+                    </div>
+                </div>
+            `;
+
+            box.querySelector('.remove-ingredient-btn').addEventListener('click', () => {
+                box.remove();
+                updateSummary();
+            });
+
+            return box;
+        }
+
+        function renderIngredients() {
+            const productName = pastrySelect.value;
+            const recipe = getRecipe(productName);
+
+            ingredientList.innerHTML = '';
+
+            recipe.forEach((item, index) => {
+                const row = createIngredientRow(item, false);
+                row.querySelector('.ingredient-check').id = `ingredient-${index}`;
+                row.querySelector('.form-check-label').setAttribute('for', `ingredient-${index}`);
+                ingredientList.appendChild(row);
+            });
+
+            updateSummary();
+        }
+
+        function getSelectedIngredients() {
+            const rows = Array.from(document.querySelectorAll('.ingredient-box'));
+            const productName = pastrySelect.value;
+            const recipe = getRecipe(productName);
+
+            return rows.map((row, index) => {
+                const isCustom = row.dataset.custom === 'true';
+                const checked = row.querySelector('.ingredient-check').checked;
+                const ingredientName = isCustom
+                    ? (row.querySelector('.ingredient-name')?.value || 'Custom Ingredient').trim()
+                    : (recipe[index]?.ingredient || 'Ingredient');
+                const quantity = Number(row.querySelector('.ingredient-qty').value || 0);
+                const unit = row.querySelector('.ingredient-unit')?.value || (recipe[index]?.unit || 'unit');
+                const unitCost = Number(row.querySelector('.ingredient-cost')?.value || recipe[index]?.unit_cost || 0);
+
+                return {
+                    selected: checked,
+                    ingredient: ingredientName,
+                    quantity: quantity,
+                    unit: unit,
+                    unit_cost: unitCost,
+                };
+            }).filter(item => item.selected && item.ingredient && item.quantity > 0);
+        }
+
+        function updateSummary() {
+            const productName = pastrySelect.value;
+            const product = productData.find((entry) => entry.name === productName) || { price: 0 };
+            const batchQty = Number(batchSizeInput.value || 0);
+            const recipe = getRecipe(productName);
+            const ingredientRows = Array.from(document.querySelectorAll('.ingredient-box'));
+
+            let totalIngredientCost = 0;
+            let costRowsHtml = '';
+
+            ingredientRows.forEach((row, index) => {
+                const isCustom = row.dataset.custom === 'true';
+                const item = isCustom
+                    ? {
+                        ingredient: row.querySelector('.ingredient-name')?.value || 'Custom Ingredient',
+                        unit_cost: Number(row.querySelector('.ingredient-cost')?.value || 0),
+                        qty: Number(row.querySelector('.ingredient-qty')?.value || 0),
+                        unit: row.querySelector('.ingredient-unit')?.value || 'unit'
+                    }
+                    : (recipe[index] || { ingredient: 'Ingredient', unit_cost: 0, qty: 0, unit: '' });
+
+                const checked = row.querySelector('.ingredient-check').checked;
+                const quantity = Number(row.querySelector('.ingredient-qty').value || 0);
+                const scaledQty = checked ? (batchQty / 200) * quantity : 0;
+                const lineCost = scaledQty * Number(item.unit_cost || 0);
+                totalIngredientCost += lineCost;
+
+                if (checked) {
+                    costRowsHtml += `
+                        <tr>
+                            <td>${item.ingredient}</td>
+                            <td class="text-end">${scaledQty.toFixed(2)} ${item.unit}</td>
+                            <td class="text-end">${currency(item.unit_cost)}</td>
+                            <td class="text-end fw-bold">${currency(lineCost)}</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            const salesValue = Number(product.price || 0) * batchQty;
+            const totalProfit = salesValue - totalIngredientCost;
+            const profitMargin = salesValue > 0 ? (totalProfit / salesValue) * 100 : 0;
+
+            document.getElementById('ingredientCost').textContent = currency(totalIngredientCost);
+            document.getElementById('salesValue').textContent = currency(salesValue);
+            document.getElementById('profitValue').textContent = currency(totalProfit);
+            document.getElementById('profitMargin').textContent = `${profitMargin.toFixed(2)}%`;
+            costTableBody.innerHTML = costRowsHtml || `
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">No ingredients selected. Please choose ingredients to compute production cost.</td>
+                </tr>
+            `;
+        }
+
+        addCustomIngredientBtn.addEventListener('click', () => {
+            const row = createIngredientRow({ ingredient: 'Custom Ingredient', qty: 1, unit: 'kg', unit_cost: 0 }, true);
+            ingredientList.appendChild(row);
+            updateSummary();
+        });
+
+        completeBatchBtn.addEventListener('click', async () => {
+            const ingredients = getSelectedIngredients();
+            const pastryName = pastrySelect.value;
+            const batchQuantity = Number(batchSizeInput.value || 0);
+
+            if (!ingredients.length) {
+                alert('Please select at least one ingredient before completing the batch.');
+                return;
+            }
+
+            if (!pastryName || batchQuantity <= 0) {
+                alert('Please choose a pastry and set the batch quantity.');
+                return;
+            }
+
+            const response = await fetch('/baker/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pastry_name: pastryName,
+                    batch_quantity: batchQuantity,
+                    base_batch: 200,
+                    ingredients: ingredients
+                })
+            });
+
+            const result = await response.json();
+            if (response.ok && result.success) {
+                alert(result.message);
+                window.location.href = '/inventory';
+            } else {
+                alert(result.message || 'Could not complete the production batch.');
+            }
+        });
+
+        pastrySelect.addEventListener('change', renderIngredients);
+        batchSizeInput.addEventListener('input', updateSummary);
+        ingredientList.addEventListener('input', updateSummary);
+        ingredientList.addEventListener('change', updateSummary);
+
+        renderIngredients();
+    </script>
+</body>
+</html>
+
+
+

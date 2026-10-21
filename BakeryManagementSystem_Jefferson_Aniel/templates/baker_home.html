@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baker Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #fffaf0, #f5f5f4);
+            color: #1c1917;
+        }
+
+        .navbar-baker {
+            background: linear-gradient(90deg, #1f2937, #111827);
+            box-shadow: 0 8px 25px rgba(15, 23, 42, 0.2);
+        }
+
+        .navbar-baker .navbar-brand {
+            font-weight: 800;
+            font-size: 1.4rem;
+            color: #fff !important;
+        }
+
+        .navbar-baker .navbar-brand i {
+            color: #f59e0b;
+            margin-right: 0.5rem;
+        }
+
+        .nav-link {
+            color: #d1d5db !important;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: #fff !important;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        .hero-banner {
+            background: linear-gradient(135deg, #1c1917 0%, #292524 100%);
+            color: #fff;
+            border-radius: 24px;
+            padding: 3rem;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .hero-banner::after {
+            content: '🍞';
+            position: absolute;
+            right: 30px;
+            bottom: -20px;
+            font-size: 10rem;
+            opacity: 0.08;
+        }
+
+        .card {
+            border: 1px solid #e7e5e4;
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            background: #fff;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+        }
+
+        .stat-card {
+            padding: 1.5rem;
+            border-radius: 18px;
+            color: #fff;
+            text-align: center;
+        }
+
+        .stat-card i {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .bg-gold { background: linear-gradient(135deg, #d97706, #f59e0b); }
+        .bg-green { background: linear-gradient(135deg, #047857, #10b981); }
+        .bg-blue { background: linear-gradient(135deg, #1d4ed8, #60a5fa); }
+
+        .btn-action {
+            border-radius: 14px;
+            padding: 1rem 2rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .batch-card {
+            border-left: 5px solid #d97706;
+        }
+
+        .batch-status {
+            display: inline-block;
+            padding: 0.4rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .batch-status.success {
+            background: #ecfdf5;
+            color: #047857;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-baker sticky-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand" href="{{ url_for('baker_home') }}">
+                <i class="fa-solid fa-user-chef"></i>Baker Dashboard
+            </a>
+            <div class="d-flex align-items-center gap-3">
+                <span class="text-white me-3">
+                    <i class="fa-solid fa-user me-1"></i>{{ current_user.username }}
+                </span>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">
+                    <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid py-4">
+        <!-- Hero Banner -->
+        <div class="hero-banner">
+            <span class="badge bg-warning text-dark mb-2 px-3 py-2 rounded-pill fw-bold">
+                <i class="fa-solid fa-chart-line me-1"></i> Production Manager
+            </span>
+            <h1 class="fw-bold mb-2">Welcome, {{ current_user.username }}</h1>
+            <p class="mb-0 text-light-emphasis text-white-50">
+                Manage your pastry production, track ingredients, and monitor batch history.
+            </p>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card bg-gold h-100">
+                    <i class="fa-solid fa-list-check"></i>
+                    <div class="small text-white-50">Total Batches</div>
+                    <h3 class="mb-0">{{ batches|length }}</h3>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card bg-green h-100">
+                    <i class="fa-solid fa-wheat-awn"></i>
+                    <div class="small text-white-50">Ready to Produce</div>
+                    <h3 class="mb-0">{{ (batches|selectattr('baked_at', 'defined')|list|length) }}</h3>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card bg-blue h-100">
+                    <i class="fa-solid fa-clock"></i>
+                    <div class="small text-white-50">Last Batch</div>
+                    <h3 class="mb-0">{% if batches %}{{ batches[0].baked_at.strftime('%H:%M') }}{% else %}<span class="fs-6">No data</span>{% endif %}</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Action Buttons -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <a href="{{ url_for('baker_production') }}" class="btn btn-primary btn-action w-100">
+                    <i class="fa-solid fa-hat-chef me-2"></i> Start New Production
+                </a>
+            </div>
+            <div class="col-md-6">
+                <a href="{{ url_for('inventory') }}" class="btn btn-secondary btn-action w-100">
+                    <i class="fa-solid fa-boxes-stacked me-2"></i> All Pastry Inventory
+                </a>
+            </div>
+            <div class="col-md-6">
+                <a href="{{ url_for('ingredient_inventory') }}" class="btn btn-secondary btn-action w-100">
+                    <i class="fa-solid fa-wheat-awn me-2"></i> Ingredient Inventory
+                </a>
+            </div>
+        </div>
+
+        <!-- Recent Batches -->
+        <div class="card p-4">
+            <h4 class="fw-bold mb-4">
+                <i class="fa-solid fa-history me-2 text-warning"></i>Recent Production Batches
+            </h4>
+
+            {% if batches %}
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Product</th>
+                            <th>Quantity</th>
+                            <th>Ingredient Cost</th>
+                            <th>Sale Value</th>
+                            <th>Profit</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for batch in batches %}
+                        <tr>
+                            <td class="fw-bold">{{ batch.product.name if batch.product else 'Unknown' }}</td>
+                            <td>{{ batch.quantity }} pcs</td>
+                            <td>₱{{ "%.2f"|format(batch.ingredient_cost) }}</td>
+                            <td>₱{{ "%.2f"|format(batch.sales_value) }}</td>
+                            <td class="fw-bold text-success">₱{{ "%.2f"|format(batch.profit) }}</td>
+                            <td class="text-muted small">{{ batch.baked_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="fa-solid fa-inbox fs-1 mb-3"></i>
+                <p>No production batches yet. Start by creating a new batch.</p>
+                <a href="{{ url_for('baker_production') }}" class="btn btn-primary btn-sm">
+                    <i class="fa-solid fa-plus me-1"></i> Create First Batch
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
+
+
+

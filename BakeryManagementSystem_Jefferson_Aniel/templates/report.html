@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bakery Financial Report</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        @media print {
+            .no-print { display: none; }
+            body { padding: 0; }
+        }
+        body { background: #f8f9fa; }
+        .summary-box { border-radius: 16px; padding: 1rem; }
+    </style>
+</head>
+<body class="p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2>Bakery Financial Summary</h2>
+            <small class="text-muted">{{ month }}/{{ year }}</small>
+        </div>
+        <div class="d-flex gap-2 no-print">
+            <div>
+                <form method="GET" class="d-flex gap-2 align-items-center" style="display: inline-flex;">
+                    <select name="month" class="form-select" style="width: auto;">
+                        {% for m in range(1, 13) %}
+                        <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m-1] }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="year" class="form-select" style="width: auto;">
+                        {% for y in range(2024, 2027) %}
+                        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-secondary">Filter</button>
+                </form>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="window.print()">Print Report</button>
+            <form method="POST" action="{{ url_for('archive_month', year=year, month=month) }}" style="display: inline;">
+                <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('Archive all sales from {{ month }}/{{ year }}? They will be marked as archived but remain in the database.')">Archive Month</button>
+            </form>
+        </div>
+    </div>
+
+    <p><strong>Generated On:</strong> {{ date }}</p>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="summary-box bg-success text-white">
+                <div class="small text-white-50">Total Revenue</div>
+                <h4 class="mb-0">₱{{ "%.2f"|format(total_revenue) }}</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-box bg-warning text-dark">
+                <div class="small text-dark-50">Ingredient Cost</div>
+                <h4 class="mb-0">₱{{ "%.2f"|format(total_production_cost) }}</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-box bg-primary text-white">
+                <div class="small text-white-50">Total Profit</div>
+                <h4 class="mb-0">₱{{ "%.2f"|format(total_profit) }}</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-box bg-dark text-white">
+                <div class="small text-white-50">Total Orders</div>
+                <h4 class="mb-0">{{ total_orders }}</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="summary-box bg-light border">
+                <div class="small text-muted">Today's Revenue</div>
+                <h4 class="mb-0">₱{{ "%.2f"|format(today_revenue) }}</h4>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="summary-box bg-light border">
+                <div class="small text-muted">Today's Profit</div>
+                <h4 class="mb-0">₱{{ "%.2f"|format(today_profit) }}</h4>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="summary-box bg-light border">
+                <div class="small text-muted">This Month Revenue</div>
+                <h4 class="mb-0">₱{{ "%.2f"|format(monthly_revenue) }}</h4>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="summary-box bg-light border">
+                <div class="small text-muted">This Month Profit</div>
+                <h4 class="mb-0">₱{{ "%.2f"|format(monthly_profit) }}</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3">Top Selling Pastries</h5>
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr><th>Pastry</th><th>Qty Sold</th><th>Revenue</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for pastry_name, stats in top_products %}
+                            <tr>
+                                <td>{{ pastry_name }}</td>
+                                <td>{{ stats.quantity }}</td>
+                                <td>₱{{ "%.2f"|format(stats.revenue) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-muted text-center">No sales yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <h5 class="fw-bold mb-3">Bakery Statement</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between"><span>Gross Sales</span><strong>₱{{ "%.2f"|format(total_revenue) }}</strong></li>
+                        <li class="list-group-item d-flex justify-content-between"><span>Ingredient Cost</span><strong>₱{{ "%.2f"|format(total_production_cost) }}</strong></li>
+                        <li class="list-group-item d-flex justify-content-between"><span>Net Profit</span><strong class="text-success">₱{{ "%.2f"|format(total_profit) }}</strong></li>
+                        <li class="list-group-item d-flex justify-content-between"><span>Average Profit per Sale</span><strong>₱{{ "%.2f"|format((total_profit / total_orders) if total_orders else 0) }}</strong></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <table class="table table-bordered bg-white">
+        <thead>
+            <tr>
+                <th>Sale ID</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Revenue</th>
+                <th>Cost</th>
+                <th>Profit</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in sales %}
+            {% set sale = record.sale %}
+            <tr>
+                <td>#{{ sale.id }}</td>
+                <td>{{ sale.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ sale.customer.name if sale.customer else 'Guest' }}</td>
+                <td>₱{{ "%.2f"|format(sale.total_amount) }}</td>
+                <td>₱{{ "%.2f"|format(record.cost) }}</td>
+                <td class="fw-bold {% if record.profit >= 0 %}text-success{% else %}text-danger{% endif %}">₱{{ "%.2f"|format(record.profit) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
+
+

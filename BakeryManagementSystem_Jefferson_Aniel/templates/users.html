@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Add New Employee</div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="text" name="username" class="form-control mb-2" placeholder="Username" required>
+                    <input type="password" name="password" class="form-control mb-2" placeholder="Password" required>
+                    <select name="role" class="form-select mb-2">
+                        <option value="Cashier">Cashier</option>
+                        <option value="Baker">Baker</option>
+                        
+                    </select>
+                    <button class="btn btn-primary w-100" type="submit">Create Employee</button>
+                </form>
+                <a href="{{ url_for('invites') }}" class="btn btn-outline-secondary w-100 mt-2">Create signup invitation</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <table class="table table-bordered bg-white">
+            <thead><tr><th>ID</th><th>Username</th><th>Role</th></tr></thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.role }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+
+

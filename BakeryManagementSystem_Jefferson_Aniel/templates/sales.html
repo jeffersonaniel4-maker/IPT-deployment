@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Itemized Sales · LJ's Bakery{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-end mb-4">
+    <div><div class="page-eyebrow">Cashier records</div><h1 class="page-title mb-1">Itemized Sales</h1><p class="text-secondary mb-0">Open any transaction to see every product sold.</p></div>
+    <a href="{{ url_for('sales_report') }}" target="_blank" class="btn btn-info">View Report</a>
+</div>
+
+<form method="GET" class="mb-3">
+    <div class="row g-2">
+        <div class="col-md-6">
+            <div class="input-group">
+                <input type="text" name="search" class="form-control" placeholder="Search by Sale ID or Customer Name" value="{{ search }}">
+                <button class="btn btn-outline-secondary" type="submit">Search</button>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select name="status" class="form-select" onchange="this.form.submit()">
+                <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open Sales</option>
+                <option value="archived" {% if status_filter == 'archived' %}selected{% endif %}>Archived</option>
+                <option value="voided" {% if status_filter == 'voided' %}selected{% endif %}>Voided/Cancelled</option>
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Sales</option>
+            </select>
+        </div>
+    </div>
+</form>
+
+<div class="alert alert-success mb-3">
+    <strong>Total Bakery Profit:</strong> ₱{{ "%.2f"|format(total_profit) }}
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped bg-white">
+        <thead>
+            <tr><th>Sale ID</th><th>Date</th><th>Customer</th><th>Total Revenue</th><th>Ingredient Cost</th><th>Profit</th><th>Status</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+            {% for record in sales %}
+            {% set sale = record.sale %}
+            <tr>
+                <td>#{{ sale.id }}</td>
+                <td>{{ sale.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ sale.customer.name if sale.customer else 'Guest' }}</td>
+                <td>₱{{ "%.2f"|format(sale.total_amount) }}</td>
+                <td>₱{{ "%.2f"|format(record.cost) }}</td>
+                <td class="fw-bold {% if record.profit >= 0 %}text-success{% else %}text-danger{% endif %}">₱{{ "%.2f"|format(record.profit) }}</td>
+                <td>
+                    <span class="badge {% if sale.status == 'open' %}bg-primary{% elif sale.status == 'archived' %}bg-secondary{% else %}bg-danger{% endif %}">
+                        {{ sale.status.title() }}
+                    </span>
+                </td>
+                <td><div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#saleItems{{ sale.id }}" aria-expanded="false">
+                        <i class="fa-solid fa-list me-1"></i> View Items ({{ sale.items|length }})
+                    </button>
+                    {% if sale.status == 'open' %}
+                    <form method="POST" action="{{ url_for('cancel_sale', sale_id=sale.id) }}" style="display: inline;">
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to cancel this sale and restore stock?')">
+                            <i class="fa fa-trash"></i> Cancel
+                        </button>
+                    </form>
+                    {% else %}
+                    <span class="text-muted small">---</span>
+                    {% endif %}
+                </div></td>
+            </tr>
+            <tr>
+                <td colspan="8" class="p-0">
+                    <div class="collapse" id="saleItems{{ sale.id }}"><div class="p-3 p-lg-4 bg-light border-start border-4 border-warning">
+                        <div class="small fw-bold text-uppercase text-secondary mb-2">Items in sale #{{ sale.id }}</div>
+                        <div class="table-responsive"><table class="table table-sm align-middle bg-white mb-0">
+                            <thead><tr><th>Product</th><th class="text-center">Quantity</th><th class="text-end">Unit Price</th><th class="text-end">Subtotal</th><th class="text-end">Unit Cost</th><th class="text-end">Item Profit</th></tr></thead>
+                            <tbody>{% for item in sale.items %}{% set unit_cost = item.product.cost_price if item.product else 0 %}{% set subtotal = item.quantity * item.price %}{% set item_profit = subtotal - (item.quantity * unit_cost) %}
+                            <tr><td><strong>{{ item.product.name if item.product else 'Deleted product' }}</strong></td><td class="text-center">{{ item.quantity }}</td><td class="text-end">₱{{ "%.2f"|format(item.price) }}</td><td class="text-end fw-bold">₱{{ "%.2f"|format(subtotal) }}</td><td class="text-end text-secondary">₱{{ "%.2f"|format(unit_cost) }}</td><td class="text-end fw-bold {{ 'text-success' if item_profit >= 0 else 'text-danger' }}">₱{{ "%.2f"|format(item_profit) }}</td></tr>
+                            {% endfor %}</tbody>
+                        </table></div>
+                    </div></div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+
